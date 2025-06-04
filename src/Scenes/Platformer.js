@@ -5,9 +5,7 @@ class Platformer extends Phaser.Scene {
 
     init() {
         // variables and settings
-        this.ACCELERATION = 400;
-        this.DRAG = 900;   
-        this.MAXSPEED = 100;
+        this.ACCELERATION = 600;
         this.physics.world.gravity.y = 1500;
         this.JUMP_VELOCITY = -500;
         this.PARTICLE_VELOCITY = 10;
@@ -116,6 +114,8 @@ class Platformer extends Phaser.Scene {
         // PLAYER SETUP
         my.sprite.player = this.physics.add.sprite(spawnX, spawnY, "platformer_characters", "tile_0000.png");
         my.sprite.player.setCollideWorldBounds(true);
+        my.sprite.player.setDragX(1000);
+        my.sprite.player.setMaxVelocity(200,500);
 
         // Enable collision handling
         this.physics.add.collider(my.sprite.player, this.groundLayer);
@@ -222,6 +222,7 @@ class Platformer extends Phaser.Scene {
         // PLAYER MOVEMENT & INPUT
         if (cursors.left.isDown || cursors.right.isDown) {
             my.sprite.player.setAccelerationX(cursors.left.isDown ? -this.ACCELERATION : this.ACCELERATION);
+            this.previousDirection = 1;
             my.sprite.player.setFlip(cursors.right.isDown, false);
             my.sprite.player.anims.play('walk', true);
             my.vfx.walking.startFollow(my.sprite.player, my.sprite.player.displayWidth/2-10, my.sprite.player.displayHeight/2, false);
@@ -232,13 +233,19 @@ class Platformer extends Phaser.Scene {
             }
         } else {
             my.sprite.player.setAccelerationX(0);
-            my.sprite.player.setDragX(this.DRAG);
+            if (this.previousDirection !== 0) {
+                let vx = my.sprite.player.body.velocity.x;
+                my.sprite.player.setVelocityX(vx * 0.2);
+                this.previousDirection = 0;
+            }
             my.sprite.player.anims.play('idle');
             my.vfx.walking.stop();
             if (this.walkingSound.isPlaying) {
                 this.walkingSound.stop();
             }
         }
+
+
 
         if (!my.sprite.player.body.blocked.down) {
             this.walkingSound.stop();
@@ -257,6 +264,10 @@ class Platformer extends Phaser.Scene {
 
         if(Phaser.Input.Keyboard.JustDown(this.rKey)) {
             this.scene.restart();
+        }
+
+        if (!my.sprite.player.body.onFloor()) {
+            my.sprite.player.setDragX(300);
         }
 
 /*         this.waterTiles.forEach(tile => {
