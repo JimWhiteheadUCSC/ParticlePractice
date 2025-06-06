@@ -5,7 +5,6 @@ class Platformer extends Phaser.Scene {
 
     init() {
         // variables and settings
-        // Joseph will handle the movement
         this.ACCELERATION = 600;
         this.physics.world.gravity.y = 1500;
         this.JUMP_VELOCITY = -500;
