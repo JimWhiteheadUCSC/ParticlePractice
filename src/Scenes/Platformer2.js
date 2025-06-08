@@ -1,6 +1,6 @@
-class Platformer extends Phaser.Scene {
+class Platformer2 extends Phaser.Scene {
     constructor() {
-        super("platformerScene");
+        super("platformerScene2");
     }
 
     init() {
@@ -18,11 +18,11 @@ class Platformer extends Phaser.Scene {
 
     preload(){
         // LOAD AUDIO FOR LEVEL
-        this.load.audio("note1Sound", "assets/note1.mp3");
-        this.load.audio("note2Sound", "assets/note2.mp3");
-        this.load.audio("note3Sound", "assets/note3.mp3");
+        this.load.audio("note1Soundl2", "assets/tumbao.mp3");
+        this.load.audio("note2Soundl2", "assets/bass.mp3");
+        this.load.audio("note3Soundl2", "assets/melody.mp3");
         this.load.audio("chordSound", "assets/chord.mp3");
-        this.load.audio("background", "assets/background1.mp3");
+        this.load.audio("backgroundl2", "assets/montuno.mp3");
         this.load.audio("walking", "assets/walking.mp3");
         this.load.audio("jump", "assets/jump.mp3");
     }
@@ -30,11 +30,12 @@ class Platformer extends Phaser.Scene {
 
     create() {
         // LOAD AUDIO INTO SOUND MANAGER
-        this.note1Sound = this.sound.add("note1Sound");
-        this.note2Sound = this.sound.add("note2Sound");
-        this.note3Sound = this.sound.add("note3Sound");
+        this.sound.stopAll();
+        this.note1Sound = this.sound.add("note1Soundl2");
+        this.note2Sound = this.sound.add("note2Soundl2");
+        this.note3Sound = this.sound.add("note3Soundl2");
         this.chordSound = this.sound.add("chordSound");
-        this.backgroundMusic = this.sound.add("background");
+        this.backgroundMusic = this.sound.add("backgroundl2");
         this.walkingSound = this.sound.add("walking");
         this.jumpSound = this.sound.add("jump");
         this.backgroundMusic.play({
@@ -43,7 +44,8 @@ class Platformer extends Phaser.Scene {
         });
         this.note1Sound.play({
             loop: true,
-            volume: 0
+            volume: 0,
+            detune: 0
         });
         this.note2Sound.play({
             loop: true,
@@ -57,8 +59,7 @@ class Platformer extends Phaser.Scene {
 
         // MAP SETUP
         // Create a new tilemap game object 
-        
-        this.map = this.add.tilemap("platformer-level-1", 18, 18, 60, 30); 
+        this.map = this.add.tilemap("platformer-level-2", 18, 18, 200, 80); 
         // Add a tileset to the map
         // First parameter: name we gave the tileset in Tiled
         // Second parameter: key for the tilesheet (from this.load.image in Load.js)
@@ -69,6 +70,10 @@ class Platformer extends Phaser.Scene {
         // Make it collidable
         this.groundLayer.setCollisionByProperty({
             collides: true
+        });
+        // add danger collidables
+        this.groundLayer.setCollisionByProperty({
+            danger: true
         });
         //create spawn point
         let spawnX = 0;
@@ -82,45 +87,46 @@ class Platformer extends Phaser.Scene {
 
 
         // Create note and finishline objects from Tiled Object Layer
+        const tilesets = this.map.tilesets;
+
         this.note1group = this.physics.add.staticGroup();
-        this.map.getObjectLayer("Notes").objects.forEach(obj => {
-            if (obj.name === "note1") {
-                let note = this.note1group.create(639, 485, "tilemap_tiles_ethan", 0);
-                note.refreshBody();
-            }
-        });
         this.note2group = this.physics.add.staticGroup();
-        this.map.getObjectLayer("Notes").objects.forEach(obj => {
-            if (obj.name === "note2") {
-                let note = this.note2group.create(837, 305, "tilemap_tiles_ethan", 1);
-                note.refreshBody();
-            }
-        });
         this.note3group = this.physics.add.staticGroup();
+        this.endgroup = this.physics.add.staticGroup();
+
         this.map.getObjectLayer("Notes").objects.forEach(obj => {
-            if (obj.name === "note3") {
-                let note = this.note3group.create(1179, 415, "tilemap_tiles_ethan", 2);
-                note.refreshBody();
+            if (!obj.gid) return;
+
+            // Find the tileset this gid belongs to
+            const tileset = tilesets.find(ts => obj.gid >= ts.firstgid && obj.gid < ts.firstgid + ts.total);
+            if (!tileset) return;
+
+            const frame = obj.gid - tileset.firstgid;
+            const tilesetKey = tileset.name === "ethantiles" ? "tilemap_tiles_ethan" : "tilemap_sheet"; // adjust if you use other tilesets
+
+            // Correct position (Tiled's y is bottom-left; Phaser's is top-left)
+            const x = obj.x;
+            const y = obj.y - obj.height;
+
+            let group;
+            if (obj.name === "note1") group = this.note1group;
+            else if (obj.name === "note2") group = this.note2group;
+            else if (obj.name === "note3") group = this.note3group;
+            else if (obj.name === "finish") group = this.endgroup;
+
+            if (group) {
+                const sprite = group.create(x, y, tilesetKey, frame);
+                sprite.setOrigin(0, 0); // Set origin to bottom-left to match Tiled
+                sprite.refreshBody();
             }
         });
-        this.endgroup = this.physics.add.staticGroup();
-        this.map.getObjectLayer("Notes").objects.forEach(obj=> {
-            if (obj.name === "finish") {
-                let finish = this.endgroup.create(1269, 384, "tilemap_sheet", 131);
-                finish.refreshBody();
-            }
-        })
 
 
         // PLAYER SETUP
         my.sprite.player = this.physics.add.sprite(spawnX, spawnY, "platformer_characters", "tile_0000.png");
-        my.sprite.player.setCollideWorldBounds(true);
+        //my.sprite.player.setCollideWorldBounds(true);
         my.sprite.player.setDragX(1000);
         my.sprite.player.setMaxVelocity(200,500);
-
-        // Enable collision handling
-        this.physics.add.collider(my.sprite.player, this.groundLayer);
-
 
 /*         //water effects
         this.waterTiles = this.groundLayer.filterTiles(tile => {
@@ -159,6 +165,7 @@ class Platformer extends Phaser.Scene {
             lifespan: 250,
             gravityY: -100,
             alpha: {start: 1, end: 0.1}, 
+            emitting: false
         });
 
         // VFX FOR JUMPING
@@ -167,11 +174,12 @@ class Platformer extends Phaser.Scene {
             lifespan: 500,
             scale: .08,
             alpha: { start: 1, end: 0 },
-            gravityY: 200
+            gravityY: 200,
+            emitting: false
         });
 
 
-        // NOTE AND FINISH COLLISION HANDLERS:
+        // NOTE AND FINISH AND DANGER COLLISION HANDLERS:
         this.physics.add.overlap(my.sprite.player, this.note1group, (player, note) => {
             this.note1Sound.setVolume(.5);
             my.vfx.note.emitParticleAt(note.x, note.y);
@@ -198,9 +206,15 @@ class Platformer extends Phaser.Scene {
                 this.sound.stopAll();
                 this.chordSound.play();
                 this.walkingSound.stop();
-                this.scene.start("platformerScene2");
+                this.scene.start("creditsScene");
             }
         }, null, this);
+
+        this.physics.add.collider(my.sprite.player, this.groundLayer, (player, tile) => {
+            if (tile.properties.danger) {
+                this.scene.restart();
+            }
+        });
 
 
         // INPUT SETUP 
@@ -210,9 +224,10 @@ class Platformer extends Phaser.Scene {
         
         // CAMERA
         this.cameras.main.setBackgroundColor('#87CEEB');
-        this.cameras.main.setBounds(0, 0, this.map.widthInPixels + 1000, this.map.heightInPixels + 1000);
+        this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
         this.cameras.main.startFollow(my.sprite.player, true, 0.9, 0.9);
         this.cameras.main.setZoom(this.SCALE);
+        //this.cameras.main.setZoom(.4);
     }
 
     update() {
