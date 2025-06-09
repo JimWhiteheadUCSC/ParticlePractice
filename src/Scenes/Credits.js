@@ -4,6 +4,7 @@ class CreditsScene extends Phaser.Scene {
     }
 
     create() {
+        this.sound.stopAll();
         const centerX = this.cameras.main.centerX;
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;

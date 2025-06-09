@@ -13,8 +13,16 @@ class Platformer extends Phaser.Scene {
         this.note1collected = false;
         this.note2collected = false;
         this.note3collected = false;
+        
+        // Tutorial variables
+        this.tutorialActive = true;
+        this.currentTutorialStep = 0;
+        this.tutorialTexts = [
+            "Welcome to Fugue!",
+            "Fugue is a musical platformer best enjoyed with the volume at full blast.\nThe goal is to collect all of the pieces of music within the level to form a complete song.",
+            "Use the arrow keys to move around, happy platforming!"
+        ];
     }
-
 
     preload(){
         // LOAD AUDIO FOR LEVEL
@@ -26,7 +34,6 @@ class Platformer extends Phaser.Scene {
         this.load.audio("walking", "assets/walking.mp3");
         this.load.audio("jump", "assets/jump.mp3");
     }
-
 
     create() {
         // LOAD AUDIO INTO SOUND MANAGER
@@ -54,10 +61,8 @@ class Platformer extends Phaser.Scene {
             volume: 0
         });
 
-
         // MAP SETUP
         // Create a new tilemap game object 
-        
         this.map = this.add.tilemap("platformer-level-1", 18, 18, 60, 30); 
         // Add a tileset to the map
         // First parameter: name we gave the tileset in Tiled
@@ -79,7 +84,6 @@ class Platformer extends Phaser.Scene {
                 spawnY = tile.getCenterY();
             }
         });
-
 
         // Create note and finishline objects from Tiled Object Layer
         this.note1group = this.physics.add.staticGroup();
@@ -111,7 +115,6 @@ class Platformer extends Phaser.Scene {
             }
         })
 
-
         // PLAYER SETUP
         my.sprite.player = this.physics.add.sprite(spawnX, spawnY, "platformer_characters", "tile_0000.png");
         my.sprite.player.setCollideWorldBounds(true);
@@ -120,23 +123,6 @@ class Platformer extends Phaser.Scene {
 
         // Enable collision handling
         this.physics.add.collider(my.sprite.player, this.groundLayer);
-
-
-/*         //water effects
-        this.waterTiles = this.groundLayer.filterTiles(tile => {
-            return tile.properties.water == true;
-        });
-
-        my.vfx.bubbles = this.add.particles(0,0, "kenny-particles", {
-            frame: ["circle_01.png", "circle_02.png"],
-            randomFrame: true,
-            scale: { start: 0.01, end: 0.03 },
-            lifespan: 250,
-            gravityY: -500,
-            alpha: { start: 1, end: 0.1 },
-            //quantity: 8,
-            emitting: false
-        }); */
 
         // VFX FOR NOTES
         my.vfx.note = this.add.particles(0,0, "kenny-particles", {
@@ -170,7 +156,6 @@ class Platformer extends Phaser.Scene {
             gravityY: 200
         });
 
-
         // NOTE AND FINISH COLLISION HANDLERS:
         this.physics.add.overlap(my.sprite.player, this.note1group, (player, note) => {
             this.note1Sound.setVolume(.5);
@@ -202,17 +187,70 @@ class Platformer extends Phaser.Scene {
             }
         }, null, this);
 
-
         // INPUT SETUP 
         cursors = this.input.keyboard.createCursorKeys();
         this.rKey = this.input.keyboard.addKey('R');
+        this.spaceKey = this.input.keyboard.addKey('SPACE');
 
-        
         // CAMERA
         this.cameras.main.setBackgroundColor('#87CEEB');
         this.cameras.main.setBounds(0, 0, this.map.widthInPixels + 1000, this.map.heightInPixels + 1000);
         this.cameras.main.startFollow(my.sprite.player, true, 0.9, 0.9);
         this.cameras.main.setZoom(this.SCALE);
+
+        // TUTORIAL SETUP
+        this.setupTutorial();
+    }
+
+    setupTutorial() {
+        // Create tutorial text objects with higher resolution for zoom
+        this.tutorialMainText = this.add.text(0, 0, "", {
+            fontSize: `${15 * this.SCALE}px`,
+            fill: '#ffffff',
+            fontFamily: 'Arial',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 4 * this.SCALE,
+            wordWrap: { width: 500 * this.SCALE }
+        }).setOrigin(0.5).setScale(1 / this.SCALE);
+
+        this.tutorialSubText = this.add.text(0, 0, "press SPACE to continue", {
+            fontSize: `${10 * this.SCALE}px`,
+            fill: '#cccccc',
+            fontFamily: 'Arial',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 2 * this.SCALE
+        }).setOrigin(0.5).setScale(1 / this.SCALE);
+
+
+        // Show first tutorial step
+        this.showTutorialStep();
+    }
+
+    showTutorialStep() {
+        this.tutorialMainText.setText(this.tutorialTexts[this.currentTutorialStep]);
+        
+        // Position tutorial text 100 pixels above player (accounting for camera zoom)
+
+        this.tutorialMainText.setPosition(my.sprite.player.x, my.sprite.player.y );
+        this.tutorialSubText.setPosition(my.sprite.player.x, my.sprite.player.y);
+        
+        this.tutorialMainText.setVisible(true);
+        this.tutorialSubText.setVisible(true);
+    }
+
+    nextTutorialStep() {
+        this.currentTutorialStep++;
+        
+        if (this.currentTutorialStep >= this.tutorialTexts.length) {
+            // Tutorial complete
+            this.tutorialActive = false;
+            this.tutorialMainText.setVisible(false);
+            this.tutorialSubText.setVisible(false);
+        } else {
+            this.showTutorialStep();
+        }
     }
 
     update() {
@@ -220,7 +258,25 @@ class Platformer extends Phaser.Scene {
         //console.log('x: ' + my.sprite.player.x);
         //console.log('y: ' + my.sprite.player.y);
 
-        // PLAYER MOVEMENT & INPUT
+        // TUTORIAL HANDLING
+        if (this.tutorialActive) {
+            // Update tutorial text position to follow player
+            const offsetY = -100 / this.SCALE;
+            this.tutorialMainText.setPosition(my.sprite.player.x, my.sprite.player.y + offsetY);
+            this.tutorialSubText.setPosition(my.sprite.player.x, my.sprite.player.y + offsetY + 40);
+            
+            // Handle space key for tutorial progression
+            if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+                this.nextTutorialStep();
+            }
+            
+            // Lock player movement during tutorial
+            my.sprite.player.setAccelerationX(0);
+            my.sprite.player.anims.play('idle');
+            return; // Exit early to prevent normal movement
+        }
+
+        // PLAYER MOVEMENT & INPUT (only when tutorial is not active)
         if (cursors.left.isDown || cursors.right.isDown) {
             my.sprite.player.setAccelerationX(cursors.left.isDown ? -this.ACCELERATION : this.ACCELERATION);
             this.previousDirection = 1;
@@ -246,8 +302,6 @@ class Platformer extends Phaser.Scene {
             }
         }
 
-
-
         if (!my.sprite.player.body.blocked.down) {
             this.walkingSound.stop();
             my.vfx.walking.stop();
@@ -270,18 +324,5 @@ class Platformer extends Phaser.Scene {
         if (!my.sprite.player.body.onFloor()) {
             my.sprite.player.setDragX(300);
         }
-
-/*         this.waterTiles.forEach(tile => {
-            let emit = Math.floor(Math.random() * 100) + 1;
-            let x = tile.getCenterX();
-            let minx = x-5;
-            let maxx = x+5;
-            let y = tile.getCenterY();
-            let miny = y-5;
-            let maxy = y+5
-            let randomx = Math.floor(Math.random() * (maxx - minx + 1)) + minx;
-            let randomy = Math.floor(Math.random() * (maxy - miny + 1)) + miny;
-            if (emit == 2) my.vfx.bubbles.emitParticleAt(randomx,randomy);
-        }); */
     }
 }
